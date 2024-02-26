@@ -4,17 +4,18 @@ import os
 from telebot.async_telebot import AsyncTeleBot
 import telebot.types as bot_types
 import json
+from .services.config import load_config
+
+config = load_config() #Токен передается через файл config.json
+
+
+bot = AsyncTeleBot(config["token"])
 
 
 
 
-bot = AsyncTeleBot("6832048335:AAG0B7RyS0v39ivRA4Cq4EWNV2WUero5Uh0")
 
-
-
-
-
-@bot.message_handler(commands="/start")
+@bot.message_handler(commands=["/start"], chat_types=["public"])
 async def handle_start_cmd(message: bot_types.Message):
     await bot.send_message(message.chat.id, "Для начала печати закиньте в диалог с ботом файл в формате PDF")
 
