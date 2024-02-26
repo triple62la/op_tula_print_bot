@@ -4,7 +4,7 @@ import os
 from telebot.async_telebot import AsyncTeleBot
 import telebot.types as bot_types
 import json
-from .services.config import load_config
+from services.config import load_config
 
 config = load_config() #Токен передается через файл config.json
 
