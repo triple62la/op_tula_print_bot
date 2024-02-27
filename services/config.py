@@ -13,5 +13,5 @@ def load_config() -> Config:
     else:
         with open(path_to_config, "r") as file:
             data = file.read()
-            return json.load(data)
+            return json.loads(data)
 
