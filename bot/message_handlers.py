@@ -5,8 +5,27 @@ import telebot.types as bot_types
 
 from bot.inline_keyboards import create_main_keyboard
 from services.database.db_service import db_create_task
+from services.database.models import TaskStatusEnum
 from services.file_service import write_file
-from services.print_service import DefaultPrintSettings
+from services.print_service import DefaultPrintSettings, OrientationEnum
+
+
+def compile_primary_msg(printer_name, copies, pages, orientation, task_status) -> str:
+    if task_status == TaskStatusEnum.WAITING:
+        task_status = "Ожидает отправки на печать"
+    elif task_status == TaskStatusEnum.PENDING:
+        task_status = "Задание было отправлено на печать"
+
+    orientation = orientation if orientation is not OrientationEnum.DEFAULT else "как в документе"
+    return f"""
+    Будет произведена печать файла с текущими настройками печати\n
+            Принтер: {printer_name}
+            Кол-во копий: {copies}
+            Номера страниц: {pages or 'Все'}
+            Ориентация: {orientation}
+            
+            \n{task_status}
+            """
 
 
 def setup_handlers(bot: telebot.async_telebot.AsyncTeleBot) -> None:
@@ -44,16 +63,20 @@ def setup_handlers(bot: telebot.async_telebot.AsyncTeleBot) -> None:
             file_path = os.getcwd() + "/downloads/" + file.file_id + ".pdf"
             await write_file(file_path, file_data)
             print_settings = DefaultPrintSettings()
+            reply_msg = await bot.reply_to(message,
+                                           compile_primary_msg(print_settings.printer_name,
+                                                               print_settings.copies,
+                                                               print_settings.pages,
+                                                               print_settings.orientation,
+                                                               TaskStatusEnum.WAITING),
+                                           reply_markup=create_main_keyboard(str(task_id)))
             await db_create_task(uuid=str(task_id),
                                  user_id=message.from_user.id,
                                  chat_id=message.chat.id,
+                                 reply_id=reply_msg.message_id,
                                  printer_name=print_settings.printer_name,
                                  copies=print_settings.copies,
                                  pages=print_settings.pages,
                                  orientation=print_settings.orientation,
                                  file_path=file_path
                                  )
-            await bot.reply_to(message,
-                               f"Будет произведена печать файла с текущими настройками печати\n{print_settings}",
-                               reply_markup=create_main_keyboard(str(task_id)))
-

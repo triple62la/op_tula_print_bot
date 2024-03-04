@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import TypeVar, Literal, Tuple
 from enum import StrEnum, IntEnum
 
@@ -23,6 +24,7 @@ class PrintSettings:
         self.copies = copies or 1
         self.pages = pages
         self.orientation = self.init_orientation(orientation)
+
     def __str__(self) -> str:
         orientation = self.orientation if self.orientation is not OrientationEnum.DEFAULT else "как в документе"
         return f"""
@@ -31,6 +33,7 @@ class PrintSettings:
         Номера страниц: {self.pages or 'Все'}
         Ориентация: {orientation}
         """
+
     @staticmethod
     def init_orientation(orientation) -> OrientationEnum:
 
@@ -54,6 +57,9 @@ class DefaultPrintSettings(PrintSettings):
 
 async def exec_task(print_settings: PrintSettings, file_path: str) -> Tuple[str, str]:
     cmd = rf'lp{print_settings.mount_to_string()} {file_path}'
+    if os.name == "nt":
+        print(cmd)
+        return "", ""
     proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE,
                                                  stderr=asyncio.subprocess.PIPE)
     stdout, stderr = await proc.communicate()
