@@ -3,7 +3,7 @@ import telebot.types as bot_types
 
 from bot.inline_keyboards import create_finished_keyboard
 from bot.message_handlers import compile_primary_msg
-from services.database.db_service import db_get_task_by_id
+from services.database.db_service import db_get_task_by_id, db_remove_task_by_id
 from services.database.models import TaskStatusEnum
 from services.print_service import PrintSettings, OrientationEnum, exec_task
 
@@ -24,7 +24,7 @@ class CallbackQueryDispatcher:
             case "setup":
                 pass
             case "delete":
-
+                await self.actions.on_delete(uid)
 
 class Actions:
 
@@ -43,4 +43,7 @@ class Actions:
                                                              task_status=TaskStatusEnum.PENDING),
                                          task.chat_id, task.reply_id
                                          )
+
+        await db_remove_task_by_id(uid)
     async def on_delete(self, uid):
+        task = await db_get_task_by_id(uid)
