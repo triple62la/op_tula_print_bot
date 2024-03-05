@@ -1,5 +1,5 @@
 import sqlalchemy.engine
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.dialects.sqlite import Insert
 from sqlalchemy.orm import sessionmaker
 from services.database.models import Tasks, engine
@@ -40,4 +40,4 @@ async def db_get_task_by_id(task_uuid):
 
 async def db_remove_task_by_id(task_uuid):
     async with async_session() as session:
-        await session.()
+        await session.execute(delete(Tasks).where(Tasks.uuid == task_uuid))
