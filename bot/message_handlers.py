@@ -14,7 +14,8 @@ def compile_primary_msg(printer_name, copies, pages, orientation, task_status) -
     if task_status == TaskStatusEnum.WAITING:
         task_status = "Ожидает отправки на печать"
     elif task_status == TaskStatusEnum.PENDING:
-        task_status = "Задание было отправлено на печать"
+        task_status = "Задание было отправлено на печать. Файл и данное сообщение автоматически удалится с сервера в " \
+                      "течение 5мин. "
 
     orientation = orientation if orientation is not OrientationEnum.DEFAULT else "как в документе"
     return f"""
@@ -73,6 +74,7 @@ def setup_handlers(bot: telebot.async_telebot.AsyncTeleBot) -> None:
             await db_create_task(uuid=str(task_id),
                                  user_id=message.from_user.id,
                                  chat_id=message.chat.id,
+                                 message_id=message.message_id,
                                  reply_id=reply_msg.message_id,
                                  printer_name=print_settings.printer_name,
                                  copies=print_settings.copies,
