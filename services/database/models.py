@@ -28,6 +28,7 @@ class Tasks(Base):
     uuid: Mapped[str]
     user_id: Mapped[int]
     chat_id: Mapped[int]
+    message_id: Mapped[int]
     reply_id: Mapped[int]
     create_date: Mapped[datetime.datetime] = mapped_column(server_default=func.now())
     printer_name: Mapped[str]

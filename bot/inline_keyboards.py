@@ -2,6 +2,8 @@ import telebot.types as bot_types
 from telebot.util import quick_markup
 import json
 
+from services.print_service import PrinterNamesEnum
+
 
 def create_main_keyboard(task_uuid: str) -> bot_types.InlineKeyboardMarkup:
     exec_btn = {"callback_data": f"execute#{task_uuid}"}
@@ -20,12 +22,19 @@ def create_finished_keyboard(task_uuid: str) -> bot_types.InlineKeyboardMarkup:
 
 
 def create_settings_keyboard(task_uuid: str) -> bot_types.InlineKeyboardMarkup:
-    printer_btn = {"callback_data": f"printer#{task_uuid}"}
-    copies_btn = {"callback_data": f"copies#{task_uuid}"}
-    pages_btn = {"callback_data": f"pages#{task_uuid}"}
-    orientation_btn = {"callback_data": f"orientation#{task_uuid}"}
+    printer_btn = {"callback_data": f"setup_printer#{task_uuid}"}
+    copies_btn = {"callback_data": f"setup_copies#{task_uuid}"}
+    pages_btn = {"callback_data": f"setup_pages#{task_uuid}"}
+    orientation_btn = {"callback_data": f"setup_orientation#{task_uuid}"}
     go_back_btn = {"callback_data": f"go_back#{task_uuid}"}
     main_keyboard = quick_markup(
-        {"Принтер": printer_btn, "Кол-во копий": copies_btn, "Страницы": pages_btn, "Ориентация": orientation_btn, "Назад": go_back_btn})
+        {"Принтер": printer_btn, "Кол-во копий": copies_btn, "Страницы": pages_btn, "Ориентация": orientation_btn,
+         "Назад": go_back_btn})
 
     return main_keyboard
+
+
+def create_printers_keyboard(task_uuid: str) -> bot_types.InlineKeyboardMarkup:
+    keys = {printer.value: {"callback_data": f"set#{task_uuid}"} for printer in PrinterNamesEnum}
+    print(keys)
+    return quick_markup(keys)

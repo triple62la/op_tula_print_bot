@@ -11,7 +11,7 @@ async_session = sessionmaker(
 )
 
 
-async def db_create_task(uuid: str, user_id: int, chat_id: int, reply_id: int, printer_name: PrinterNamesEnum,
+async def db_create_task(uuid: str, user_id: int, chat_id: int, message_id: int, reply_id: int, printer_name: PrinterNamesEnum,
                          copies: int,
                          pages: list[int],
                          orientation: OrientationEnum, file_path: str
@@ -21,6 +21,7 @@ async def db_create_task(uuid: str, user_id: int, chat_id: int, reply_id: int, p
         result = await conn.execute(Insert(Tasks), [{"uuid": uuid,
                                                      "user_id": user_id,
                                                      "chat_id": chat_id,
+                                                     "message_id": message_id,
                                                      "reply_id": reply_id,
                                                      "printer_name": printer_name.value,
                                                      "copies": copies,
@@ -38,6 +39,8 @@ async def db_get_task_by_id(task_uuid):
         result = await session.execute(select(Tasks).where(Tasks.uuid == task_uuid))
         return result.scalars().one_or_none()
 
+
 async def db_remove_task_by_id(task_uuid):
     async with async_session() as session:
         await session.execute(delete(Tasks).where(Tasks.uuid == task_uuid))
+        await session.commit()
