@@ -2,56 +2,26 @@ import os
 import uuid
 import telebot.async_telebot
 import telebot.types as bot_types
+from telebot import asyncio_filters
 
-from bot.inline_keyboards import create_main_keyboard
-from services.database.db_service import db_create_task
-from services.database.models import TaskStatusEnum
+from bot.menus import BotMenus
+from bot.states import SettingsState
+from services.database.db_service import db_create_task, db_set_param_by_id, db_get_task_by_id
+from services.database.models import Tasks
 from services.file_service import write_file
-from services.print_service import DefaultPrintSettings, OrientationEnum
-
-
-def compile_primary_msg(printer_name, copies, pages, orientation, task_status) -> str:
-    if task_status == TaskStatusEnum.WAITING:
-        task_status = "Ожидает отправки на печать"
-    elif task_status == TaskStatusEnum.PENDING:
-        task_status = "Задание было отправлено на печать. Файл и данное сообщение автоматически удалится с сервера в " \
-                      "течение 5мин. "
-
-    orientation = orientation if orientation is not OrientationEnum.DEFAULT else "как в документе"
-    return f"""
-    Будет произведена печать файла с текущими настройками печати\n
-            Принтер: {printer_name}
-            Кол-во копий: {copies}
-            Номера страниц: {pages or 'Все'}
-            Ориентация: {orientation}
-            
-            \n{task_status}
-            """
+from services.print_service import DefaultPrintSettings
 
 
 def setup_handlers(bot: telebot.async_telebot.AsyncTeleBot) -> None:
-    # @bot.my_chat_member_handler()
-    # async def handle_chat_add(updated: bot_types.ChatMemberUpdated):
-    #     if updated.difference["status"][1] in ["administrator", 'member']:
-    #         current_groups.append(updated.chat)
-    #     elif updated.difference["status"][1] == "left":
-    #         for index, chat in enumerate(current_groups):
-    #             if updated.chat.id == chat.id:
-    #                 current_groups.pop(index)
-    #                 break
-    #     print(current_groups)
+    menus = BotMenus(bot)
 
     @bot.message_handler(commands=["start"], chat_types=["supergroup"])
     async def handle_start_cmd(message: bot_types.Message):
-        print(message.chat.id)
-        print(await bot.get_chat(message.chat.id))
         await bot.send_message(message.chat.id,
                                "Для печати напишите личное сообщение боту или закиньте в лс файл в формате PDF")
 
     @bot.message_handler(commands=["start"], chat_types=["private"])
     async def handle_start_cmd(message: bot_types.Message):
-        print(message.chat.id)
-        print(await bot.get_chat(message.chat.id))
         await bot.send_message(message.chat.id, "Для печати перетащите в этот чат файл в формате PDF")
 
     @bot.message_handler(chat_types=["private"], content_types=["document"])
@@ -64,13 +34,7 @@ def setup_handlers(bot: telebot.async_telebot.AsyncTeleBot) -> None:
             file_path = os.getcwd() + "/downloads/" + file.file_id + ".pdf"
             await write_file(file_path, file_data)
             print_settings = DefaultPrintSettings()
-            reply_msg = await bot.reply_to(message,
-                                           compile_primary_msg(print_settings.printer_name,
-                                                               print_settings.copies,
-                                                               print_settings.pages,
-                                                               print_settings.orientation,
-                                                               TaskStatusEnum.WAITING),
-                                           reply_markup=create_main_keyboard(str(task_id)))
+            reply_msg = await menus.reply_with_main_menu(message, str(task_id), print_settings)
             await db_create_task(uuid=str(task_id),
                                  user_id=message.from_user.id,
                                  chat_id=message.chat.id,
@@ -82,3 +46,34 @@ def setup_handlers(bot: telebot.async_telebot.AsyncTeleBot) -> None:
                                  orientation=print_settings.orientation,
                                  file_path=file_path
                                  )
+        else:
+            await bot.reply_to(message, "В печать подходят только файлы формата PDF")
+
+    @bot.message_handler(state=SettingsState.copies, is_digit=True)
+    async def set_copies(message: bot_types.Message):
+        async with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            uid = data["curr_uid"]
+        await db_set_param_by_id(uid, copies=int(message.text))
+        await bot.delete_message(message.chat.id, message.message_id)
+        await bot.delete_state(message.from_user.id, message.chat.id)
+        await menus.send_main_menu(uid)
+
+    @bot.message_handler(state=SettingsState.copies, is_digit=False)
+    async def copies_incorrect(message: bot_types.Message):
+        async with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            uid = data["curr_uid"]
+        task = await db_get_task_by_id(uid)
+        await bot.edit_message_text("Некорректный ввод. Введите необходимое число копий документа")
+
+    @bot.message_handler(state=SettingsState.pages)
+    async def set_pages(message: bot_types.Message):
+        async with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+            uid = data["curr_uid"]
+
+        await db_set_param_by_id(uid, pages=message.text.replace(" ", ""))
+        await bot.delete_message(message.chat.id, message.message_id)
+        await bot.delete_state(message.from_user.id, message.chat.id)
+        await menus.send_main_menu(uid)
+
+    bot.add_custom_filter(asyncio_filters.StateFilter(bot))
+    bot.add_custom_filter(asyncio_filters.IsDigitFilter())

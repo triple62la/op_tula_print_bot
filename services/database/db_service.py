@@ -1,5 +1,5 @@
 import sqlalchemy.engine
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from sqlalchemy.dialects.sqlite import Insert
 from sqlalchemy.orm import sessionmaker
 from services.database.models import Tasks, engine
@@ -11,7 +11,8 @@ async_session = sessionmaker(
 )
 
 
-async def db_create_task(uuid: str, user_id: int, chat_id: int, message_id: int, reply_id: int, printer_name: PrinterNamesEnum,
+async def db_create_task(uuid: str, user_id: int, chat_id: int, message_id: int, reply_id: int,
+                         printer_name: PrinterNamesEnum,
                          copies: int,
                          pages: list[int],
                          orientation: OrientationEnum, file_path: str
@@ -43,4 +44,10 @@ async def db_get_task_by_id(task_uuid):
 async def db_remove_task_by_id(task_uuid):
     async with async_session() as session:
         await session.execute(delete(Tasks).where(Tasks.uuid == task_uuid))
+        await session.commit()
+
+
+async def db_set_param_by_id(task_uuid, **params):
+    async with async_session() as session:
+        await session.execute(update(Tasks).where(Tasks.uuid == task_uuid).values(**params))
         await session.commit()

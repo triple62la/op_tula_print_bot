@@ -12,6 +12,8 @@ class OrientationEnum(IntEnum):
 
 class PrinterNamesEnum(StrEnum):
     KYOCERA = "kyocera"
+    HP = "hp"
+    RICOH = "ricoh"
 
 
 Orientation = Literal["portrait", "landscape", "default"]
