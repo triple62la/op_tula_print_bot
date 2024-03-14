@@ -1,16 +1,12 @@
 import asyncio
-
 import telebot.async_telebot
 import telebot.types as bot_types
-
-from bot.inline_keyboards import create_main_keyboard, create_finished_keyboard, create_settings_keyboard, \
-    create_printers_keyboard, create_cancel_setup_btn
 from bot.menus import BotMenus
 from bot.states import SettingsState
 from services.database.db_service import db_get_task_by_id, db_remove_task_by_id, db_set_param_by_id
 from services.database.models import TaskStatusEnum, Tasks
 from services.file_service import delete_file
-from services.print_service import PrintSettings, OrientationEnum, exec_task
+from services.print_service import PrintSettings, exec_task
 
 
 class CallbackQueryDispatcher:
@@ -20,8 +16,6 @@ class CallbackQueryDispatcher:
 
     def enable(self) -> None:
         self.bot.register_callback_query_handler(callback=self.dispatch_main_query, func=lambda callback: callback)
-        # self.bot.register_callback_query_handler(callback=self.dispatch_printer_query, func=lambda callback: callback,
-        #                                          state=SettingsState.printer)
 
     async def dispatch_main_query(self, callback: bot_types.CallbackQuery) -> None:
 
@@ -31,19 +25,23 @@ class CallbackQueryDispatcher:
             case "execute":
                 await self.actions.on_execute(uid, task)
             case "setup":
-                await self.actions.on_setup(uid, task)
+                await self.actions.on_setup(task)
             case "cancel_setup":
                 await self.actions.on_cancel_setup(task)
             case "delete":
                 await self.actions.on_delete(uid, task)
             case "setup_printer":
-                await self.actions.on_setup_printer(uid, task)
+                await self.actions.on_setup_printer(task)
             case "set_printer":
                 await self.actions.on_set_printer(payload, uid)
             case "setup_copies":
                 await self.actions.on_setup_copies(task)
             case "setup_pages":
                 await self.actions.on_setup_pages(task)
+            case "setup_orientation":
+                await self.actions.on_setup_orientation(task)
+            case "set_orientation":
+                await self.actions.on_set_orientation(task, payload)
             case "go_back":
                 await self.actions.on_go_back(uid)
 
@@ -55,11 +53,12 @@ class Actions:
         self.menus = BotMenus(bot)
 
     async def on_execute(self, uid, task):
-        pages = task.pages.split(", ")
+
+        pages = task.pages.split(",") if task.pages else []
         settings = PrintSettings(task.printer_name, task.copies, pages, task.orientation)
         await exec_task(settings, task.file_path)
         await db_set_param_by_id(uid, status=TaskStatusEnum.PENDING)
-        await self.menus.send_main_menu(uid)
+        await self.menus.send_executed_msg(task)
         await asyncio.sleep(300)
         await db_remove_task_by_id(uid)
         delete_file(task.file_path)
@@ -69,15 +68,13 @@ class Actions:
     async def on_delete(self, uid, task):
         delete_file(task.file_path)
         await db_remove_task_by_id(uid)
-        await self.bot.edit_message_text("Задание было отменено. Файл удален с сервера", task.chat_id, task.reply_id)
+        await self.menus.send_cancelled_msg(task)
 
-    async def on_setup(self, uid, task):
-        await self.bot.edit_message_text("Параметры печати", task.chat_id, task.reply_id,
-                                         reply_markup=create_settings_keyboard(uid))
+    async def on_setup(self, task):
+        await self.menus.send_settings_menu(task)
 
-    async def on_setup_printer(self, uid, task: Tasks):
-        await self.bot.edit_message_text("Выберите принтер для печати текущего задания:", task.chat_id, task.reply_id,
-                                         reply_markup=create_printers_keyboard(uid))
+    async def on_setup_printer(self, task: Tasks):
+        await self.menus.ask_printers(task)
         # await self.bot.set_state(task.user_id, SettingsState.printer, task.chat_id)
 
     async def on_set_printer(self, payload: str, uid: str):
@@ -85,8 +82,7 @@ class Actions:
         await self.menus.send_main_menu(uid)
 
     async def on_setup_copies(self, task: Tasks):
-        await self.bot.edit_message_text("Отправьте в чат число необходимых копий документа", task.chat_id,
-                                         task.reply_id, reply_markup=create_cancel_setup_btn(task.uuid))
+        await self.menus.ask_copies(task)
         await self.bot.set_state(task.user_id, SettingsState.copies, task.chat_id)
         async with self.bot.retrieve_data(task.user_id, task.chat_id) as data:
             data["curr_uid"] = task.uuid
@@ -96,12 +92,17 @@ class Actions:
         await self.menus.send_main_menu(task.uuid)
 
     async def on_setup_pages(self, task):
-        await self.bot.edit_message_text(
-            "Отправьте в чат через запятую нужные страницы для печати", task.chat_id,
-            task.reply_id, reply_markup=create_cancel_setup_btn(task.uuid))
+        await self.menus.ask_pages(task)
         await self.bot.set_state(task.user_id, SettingsState.pages, task.chat_id)
         async with self.bot.retrieve_data(task.user_id, task.chat_id) as data:
             data["curr_uid"] = task.uuid
+
+    async def on_setup_orientation(self, task):
+        await self.menus.ask_orientation(task)
+
+    async def on_set_orientation(self, task, payload):
+        await db_set_param_by_id(task.uuid, orientation=int(payload))
+        await self.menus.send_main_menu(task.uuid)
 
     async def on_go_back(self, uid):
         await self.menus.send_main_menu(uid)
