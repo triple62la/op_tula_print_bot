@@ -11,7 +11,7 @@ from services.config import load_config
 from services.database.models import engine, Base
 
 logger = telebot.logger
-telebot.logger.setLevel(logging.DEBUG)
+telebot.logger.setLevel(logging.INFO)
 
 # Загрузка данных из файла конфигурации
 # Конфиг содержит токен бота, id чата в котором бот будет проверять членство юзеров для авторизации и список юзеров
@@ -42,9 +42,10 @@ setup_handlers(bot, PRIMARY_CHAT_ID)
 
 @bot.my_chat_member_handler(func=lambda updated: updated.chat.type != "private")
 async def handle_bot_invite(updated: telebot.types.ChatMemberUpdated):
-    if updated.difference["status"][1] == "member" and updated.chat.id != PRIMARY_CHAT_ID:
-        await bot.send_message(updated.chat.id, "Нельзя просто так взять и добавить этого бота в сторонние чаты")
-        await bot.leave_chat(updated.chat.id)
+    # if updated.difference["status"][1] == "member" and updated.chat.id != PRIMARY_CHAT_ID:
+    #     await bot.send_message(updated.chat.id, "Нельзя просто так взять и добавить этого бота в сторонние чаты")
+    #     await bot.leave_chat(updated.chat.id)
+    print(updated.chat.id)
 
 async def async_main() -> None:
     async with engine.begin() as conn:
