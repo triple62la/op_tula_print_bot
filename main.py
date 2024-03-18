@@ -1,5 +1,6 @@
 import asyncio
 import os
+import sys
 import telebot
 import logging
 from telebot.async_telebot import StateMemoryStorage
@@ -12,31 +13,42 @@ from services.database.models import engine, Base
 logger = telebot.logger
 telebot.logger.setLevel(logging.DEBUG)
 
-config = load_config()
 # Загрузка данных из файла конфигурации
+# Конфиг содержит токен бота, id чата в котором бот будет проверять членство юзеров для авторизации и список юзеров
+TOKEN, PRIMARY_CHAT_ID, ADMINS_LIST = load_config()
 
-# Now, you can pass storage to bot.
-state_storage = StateMemoryStorage()  # you can initialize here another storage
 
-bot = AsyncTeleBot(config["token"], state_storage=state_storage)  # Токен передается через файл config.json
+# это сторедж в котором хранятся стейты юзеров
+state_storage = StateMemoryStorage()
+
+
 # инициализация бота
+# Токен передается через файл config.json
+bot = AsyncTeleBot(TOKEN, state_storage=state_storage)
 
-# bot.add_custom_filter(StateFilter(bot))
 
-dispatcher: CallbackQueryDispatcher = CallbackQueryDispatcher(bot)
 # инициализация диспатчера обработки query коллбеков
-dispatcher.enable()
+dispatcher: CallbackQueryDispatcher = CallbackQueryDispatcher(bot, PRIMARY_CHAT_ID)
 # включение диспатчера
-
-setup_handlers(bot)
+dispatcher.enable()
 
 
 # Установка обработчиков сообщений
+setup_handlers(bot, PRIMARY_CHAT_ID)
 
+
+
+
+
+@bot.my_chat_member_handler(func=lambda updated: updated.chat.type != "private")
+async def handle_bot_invite(updated: telebot.types.ChatMemberUpdated):
+    if updated.difference["status"][1] == "member" and updated.chat.id != PRIMARY_CHAT_ID:
+        await bot.send_message(updated.chat.id, "Нельзя просто так взять и добавить этого бота в сторонние чаты")
+        await bot.leave_chat(updated.chat.id)
 
 async def async_main() -> None:
     async with engine.begin() as conn:
-        if os.name == "nt":
+        if "--drop_tables" in sys.argv:
             await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     await bot.infinity_polling()

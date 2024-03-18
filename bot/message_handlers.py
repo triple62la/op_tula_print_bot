@@ -3,16 +3,23 @@ import uuid
 import telebot.async_telebot
 import telebot.types as bot_types
 from telebot import asyncio_filters
-
+from telebot.asyncio_filters import SimpleCustomFilter
 from bot.menus import BotMenus
 from bot.states import SettingsState
 from services.database.db_service import db_create_task, db_set_param_by_id, db_get_task_by_id
-from services.database.models import Tasks
 from services.file_service import write_file
 from services.print_service import DefaultPrintSettings
 
 
-def setup_handlers(bot: telebot.async_telebot.AsyncTeleBot) -> None:
+def setup_handlers(bot: telebot.async_telebot.AsyncTeleBot, primary_chat_id) -> None:
+    class IsPrimaryChatMemer(SimpleCustomFilter):
+        key = 'is_chat_member'
+
+        @staticmethod
+        async def check(message: bot_types.Message):
+            chat_member = await bot.get_chat_member(primary_chat_id, message.from_user.id)
+            return chat_member.status != "left"
+
     menus = BotMenus(bot)
 
     @bot.message_handler(commands=["start"], chat_types=["supergroup"])
@@ -20,11 +27,15 @@ def setup_handlers(bot: telebot.async_telebot.AsyncTeleBot) -> None:
         await bot.send_message(message.chat.id,
                                "Для печати напишите личное сообщение боту или закиньте в лс файл в формате PDF")
 
-    @bot.message_handler(commands=["start"], chat_types=["private"])
+    @bot.message_handler(commands=["start"], chat_types=["private"], is_chat_member=True)
     async def handle_start_cmd(message: bot_types.Message):
         await bot.send_message(message.chat.id, "Для печати перетащите в этот чат файл в формате PDF")
 
-    @bot.message_handler(chat_types=["private"], content_types=["document"])
+    @bot.message_handler(commands=["start"], chat_types=["private"], is_chat_member=False)
+    async def handle_start_cmd(message: bot_types.Message):
+        await bot.send_message(message.chat.id, "У вас нет прав на использование данного бота")
+
+    @bot.message_handler(chat_types=["private"], content_types=["document"], is_chat_member=True)
     async def handle_file(message: bot_types.Message):
         file_name = message.document.file_name
         if file_name.endswith(".pdf"):
@@ -49,7 +60,11 @@ def setup_handlers(bot: telebot.async_telebot.AsyncTeleBot) -> None:
         else:
             await bot.reply_to(message, "В печать подходят только файлы формата PDF")
 
-    @bot.message_handler(state=SettingsState.copies, is_digit=True)
+    @bot.message_handler(chat_types=["private"], content_types=["document"], is_chat_member=False)
+    async def handle_file(message: bot_types.Message):
+        await bot.send_message(message.chat.id, "У вас нет прав на использование данного бота")
+
+    @bot.message_handler(state=SettingsState.copies, is_digit=True, is_chat_member=True)
     async def set_copies(message: bot_types.Message):
         async with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             uid = data["curr_uid"]
@@ -58,14 +73,14 @@ def setup_handlers(bot: telebot.async_telebot.AsyncTeleBot) -> None:
         await bot.delete_state(message.from_user.id, message.chat.id)
         await menus.send_main_menu(uid)
 
-    @bot.message_handler(state=SettingsState.copies, is_digit=False)
+    @bot.message_handler(state=SettingsState.copies, is_digit=False, is_chat_member=True)
     async def copies_incorrect(message: bot_types.Message):
         async with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             uid = data["curr_uid"]
         task = await db_get_task_by_id(uid)
         await bot.edit_message_text("Некорректный ввод. Введите необходимое число копий документа")
 
-    @bot.message_handler(state=SettingsState.pages)
+    @bot.message_handler(state=SettingsState.pages, is_chat_member=True)
     async def set_pages(message: bot_types.Message):
         async with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
             uid = data["curr_uid"]
@@ -77,3 +92,4 @@ def setup_handlers(bot: telebot.async_telebot.AsyncTeleBot) -> None:
 
     bot.add_custom_filter(asyncio_filters.StateFilter(bot))
     bot.add_custom_filter(asyncio_filters.IsDigitFilter())
+    bot.add_custom_filter(IsPrimaryChatMemer())

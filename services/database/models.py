@@ -9,6 +9,10 @@ from sqlalchemy.orm import mapped_column
 
 
 
+class AllowedUserRoles(StrEnum):
+    ADMIN = "ADMIN"
+    USER = "USER"
+
 class Base(AsyncAttrs, DeclarativeBase):
     pass
 
@@ -38,30 +42,17 @@ class Tasks(Base):
     file_path: Mapped[str]
     status: Mapped[TaskStatusEnum] = mapped_column(default=TaskStatusEnum.WAITING)
 
-# class SavedPrintSettings(Base):
-#     __tablename__ = "b"
-#     user_id: Mapped[int]
-#     printer_name: Mapped[str]
-#     copies: Mapped[int] = mapped_column(default=1)
-#     pages: Mapped[Optional[str]] = mapped_column(nullable=False)
-#     data: Mapped[str]
 
 
-# async def async_main() -> None:
+# class AllowedUsers(Base):
+#     __tablename__ = "allowed_users"
 #
+#     id: Mapped[int]
+#     first_name: Mapped[str]
+#     last_name: Mapped[str]
+#     username: Mapped[str]
+#     role: Mapped[AllowedUserRoles]
 #
-#     # async_sessionmaker: a factory for new AsyncSession objects.
-#     # expire_on_commit - don't expire objects after transaction commit
-#     async_session = async_sessionmaker(engine, expire_on_commit=False)
-#
-#
-#
-#     await insert_objects(async_session)
-#     await select_and_update_objects(async_session)
-#
-#     # for AsyncEngine created in function scope, close and
-#     # clean-up pooled connections
-#     await engine.dispose()
 
 
 if __name__ == '__main__':

@@ -11,7 +11,7 @@ def compile_primary_msg(printer_name, copies, pages, orientation: int, task_stat
         task_status = "Ожидает отправки на печать"
     elif task_status == TaskStatusEnum.PENDING:
         task_status = "Задание было отправлено на печать. Файл и данное сообщение автоматически удалится с сервера в " \
-                      "течение 5мин. "
+                      "течение 1мин. "
     match orientation:
         case OrientationEnum.DEFAULT:
             orientation = "как в документе"

@@ -10,14 +10,26 @@ from services.print_service import PrintSettings, exec_task
 
 
 class CallbackQueryDispatcher:
-    def __init__(self, bot: telebot.async_telebot.AsyncTeleBot) -> None:
+    def __init__(self, bot: telebot.async_telebot.AsyncTeleBot, primary_chat_id) -> None:
         self.bot = bot
         self.actions = Actions(bot)
+        self.primary_chat_id = primary_chat_id
 
     def enable(self) -> None:
         self.bot.register_callback_query_handler(callback=self.dispatch_main_query, func=lambda callback: callback)
 
+    async def _is_chat_member(self, callback: bot_types.CallbackQuery) -> bool:
+
+        if self.primary_chat_id == 0:
+            return True
+        is_chat_member = await self.bot.get_chat_member(self.primary_chat_id, callback.from_user.id)
+        return is_chat_member is not None
+
     async def dispatch_main_query(self, callback: bot_types.CallbackQuery) -> None:
+
+        if not self._is_chat_member(callback):
+            await self.bot.send_message(callback.message.chat.id, "Вас нет в списке разрешенных пользователей")
+            return
 
         action, payload, uid = callback.data.split("#")
         task: Tasks = await db_get_task_by_id(uid)
@@ -59,11 +71,14 @@ class Actions:
         await exec_task(settings, task.file_path)
         await db_set_param_by_id(uid, status=TaskStatusEnum.PENDING)
         await self.menus.send_executed_msg(task)
-        await asyncio.sleep(300)
+        await asyncio.sleep(60)
         await db_remove_task_by_id(uid)
         delete_file(task.file_path)
-        await self.bot.delete_message(task.chat_id, task.message_id)
-        await self.bot.delete_message(task.chat_id, task.reply_id)
+        try:
+            await self.bot.delete_message(task.chat_id, task.message_id)
+            await self.bot.delete_message(task.chat_id, task.reply_id)
+        except Exception as e:
+            pass
 
     async def on_delete(self, uid, task):
         delete_file(task.file_path)
