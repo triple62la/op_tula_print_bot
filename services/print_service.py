@@ -13,7 +13,7 @@ class OrientationEnum(IntEnum):
 class PrinterNamesEnum(StrEnum):
     KYOCERA = "kyocera"
     HP = "hp"
-    RICOH = "ricoh"
+
 
 
 Orientation = Literal["portrait", "landscape", "default"]
@@ -49,7 +49,8 @@ class PrintSettings:
         pages = f" -P {','.join(map(str, self.pages))}" if self.pages else ""
         orientation = f" -o {self.orientation.value}" \
             if self.orientation is not OrientationEnum.DEFAULT else ""
-        return f" -d {self.printer_name} -n {self.copies}{pages} -o media=A4 {orientation}"
+        media_size = " -o media=A4 " if self.printer_name == PrinterNamesEnum.KYOCERA else ""
+        return f" -d {self.printer_name} -n {self.copies}{pages}{media_size}{orientation}"
 
 
 class DefaultPrintSettings(PrintSettings):
