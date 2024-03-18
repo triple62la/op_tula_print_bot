@@ -47,9 +47,9 @@ class PrintSettings:
 
     def mount_to_string(self) -> str:
         pages = f" -P {','.join(map(str, self.pages))}" if self.pages else ""
-        orientation = f" -o orientation-requested={self.orientation.value}" \
+        orientation = f" -o {self.orientation.value}" \
             if self.orientation is not OrientationEnum.DEFAULT else ""
-        return f" -d {self.printer_name} -n {self.copies}{pages}{orientation}"
+        return f" -d {self.printer_name} -n {self.copies}{pages} -o media=A4 {orientation}"
 
 
 class DefaultPrintSettings(PrintSettings):
