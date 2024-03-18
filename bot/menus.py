@@ -108,7 +108,7 @@ class BotMenus:
 
     async def send_executed_msg(self, task):
         await self.bot.edit_message_text(
-            "Задание было отправлено на печать. Файл и данное сообщение автоматически удалится с сервера в течение 5мин.",
+            "Задание было отправлено на печать. Файл и данное сообщение автоматически удалится с сервера в течение 1мин.",
             task.chat_id, task.reply_id)
 
     async def ask_pages(self, task):
