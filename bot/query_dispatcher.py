@@ -6,7 +6,7 @@ from bot.states import SettingsState
 from services.database.db_service import db_get_task_by_id, db_remove_task_by_id, db_set_param_by_id
 from services.database.models import TaskStatusEnum, Tasks
 from services.file_service import delete_file
-from services.print_service import PrintSettings, exec_task
+from services.print_service import PrintSettings, PrintTask
 
 
 class CallbackQueryDispatcher:
@@ -68,7 +68,8 @@ class Actions:
 
         pages = task.pages.split(",") if task.pages else []
         settings = PrintSettings(task.printer_name, task.copies, pages, task.orientation)
-        await exec_task(settings, task.file_path)
+        print_task = PrintTask(settings, task.file_path)
+        cups_id, err = await print_task.exec_task()
         await db_set_param_by_id(uid, status=TaskStatusEnum.PENDING)
         await self.menus.send_executed_msg(task)
         await asyncio.sleep(60)

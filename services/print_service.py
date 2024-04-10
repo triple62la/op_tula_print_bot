@@ -15,7 +15,6 @@ class PrinterNamesEnum(StrEnum):
     HP = "hp"
 
 
-
 Orientation = Literal["portrait", "landscape", "default"]
 
 
@@ -55,18 +54,37 @@ class PrintSettings:
 
 class DefaultPrintSettings(PrintSettings):
     def __init__(self) -> None:
-        super().__init__(PrinterNamesEnum.KYOCERA, 1, [], OrientationEnum.DEFAULT)
+        super().__init__(PrinterNamesEnum.HP, 1, [], OrientationEnum.DEFAULT)
 
 
-async def exec_task(print_settings: PrintSettings, file_path: str) -> Tuple[str, str]:
-    cmd = rf'lp{print_settings.mount_to_string()} {file_path}'
-    if os.name == "nt":
-        print(cmd)
-        return "", ""
-    proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE,
-                                                 stderr=asyncio.subprocess.PIPE)
-    stdout, stderr = await proc.communicate()
-    return stdout.decode(), stderr.decode()
+class PrintTask:
+
+    def __init__(self, print_settings: PrintSettings, file_path: str) -> None:
+        self.print_settings = print_settings
+        self.file_path = file_path
+
+    async def exec_task(self, ) -> Tuple[str, str]:
+        cmd = rf'lp{self.print_settings.mount_to_string()} {self.file_path}'
+        if os.name == "nt":
+            print(cmd)
+            return "", ""
+        proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE,
+                                                     stderr=asyncio.subprocess.PIPE)
+        stdout, stderr = await proc.communicate()
+        return stdout.decode(), stderr.decode()
+
+    async def do_when_finished(self, task_id, callback):
+        cmd = rf'lpstat -W not-completed'
+        while True:
+            proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE,
+                                                         stderr=asyncio.subprocess.PIPE)
+            stdout, stderr = await proc.communicate()
+            if task_id not in stdout.decode():
+                callback()
+                return
+            else:
+                print(stdout.decode())
+                await asyncio.sleep(1.0)
 
 
 if __name__ == "__main__":
