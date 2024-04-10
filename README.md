@@ -24,4 +24,4 @@ present in this chat, the bot will refuse to complete tasks
 
 <p>You can start main.py file with argument --drop_tables - this will delete existing tables in database.
 New tables creates automatically.</p>
-<p>If the tusk stuck in queue you need to delete 
+<p>If the tusk stuck in queue(which happens often with kyocera) you need to delete printer<p>
