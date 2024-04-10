@@ -54,7 +54,7 @@ class PrintSettings:
 
 class DefaultPrintSettings(PrintSettings):
     def __init__(self) -> None:
-        super().__init__(PrinterNamesEnum.KYOCERA, 1, [], OrientationEnum.DEFAULT)
+        super().__init__(PrinterNamesEnum.HP, 1, [], OrientationEnum.DEFAULT)
 
 
 async def exec_task(print_settings: PrintSettings, file_path: str) -> Tuple[str, str]:
